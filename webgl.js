@@ -234,7 +234,7 @@ function workerFunc(e) {
     var anim = e.data.anim;
     var fromToPos = e.data.fromToPos;
     var itemCount = e.data.itemCount;
-    var initPos = e.data.initPos;
+    var targetPos = e.data.targetPos;
     
     var dataAnim = [];
     var dataFromToPos = [];
@@ -265,8 +265,8 @@ function workerFunc(e) {
         
         dataFromToPos.push(cx, cy);
         
-        if (initPos) {
-            dataFromToPos.push(initPos[j2 + 0], initPos[j2 + 1]);
+        if (targetPos) {
+            dataFromToPos.push(targetPos[j2 + 0], targetPos[j2 + 1]);
         } else {
             var move = 0.8;
             var randX = Math.random() - 0.5;
@@ -276,7 +276,7 @@ function workerFunc(e) {
         
     }
     
-    var duration = (initPos) ? 800 : 3000;
+    var duration = e.data.duration || 3000;
     var now = Date.now() - e.data.timeOffset;
     for (var j = 0; j < itemCount; j++) {
         var j4 = 4 * j;
@@ -296,11 +296,30 @@ function setResult(result) {
     _aFromToPos.setData(result.fromToPos);
 }
 
+function shufflePairs(array) {
+    var currentIndex = array.length / 2, randomIndex ;
+    while (0 !== currentIndex) {
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex -= 1;
+
+        var temporaryValue0 = array[currentIndex * 2 + 0];
+        var temporaryValue1 = array[currentIndex * 2 + 1];
+        
+        array[currentIndex * 2 + 0] = array[randomIndex * 2 + 0];
+        array[currentIndex * 2 + 1] = array[randomIndex * 2 + 1];
+        
+        array[randomIndex * 2 + 0] = temporaryValue0;
+        array[randomIndex * 2 + 1] = temporaryValue1;
+    }
+    return array;
+}
+
 function keydown(e) {
     
     var reset = (e.keyCode == 82);
+    var swap = (e.keyCode == 83);
     
-    if (e.keyCode == 32 || reset) {
+    if (e.keyCode == 32 || reset || swap) {
         
         var message = {
             anim: _aAnim.data, 
@@ -310,7 +329,15 @@ function keydown(e) {
             startTime: Date.now()};
         
         if (reset) {
-            message.initPos = new Float32Array(_initPos);
+            message.targetPos = new Float32Array(_initPos);
+            message.duration = 800;
+        }
+        
+        if (swap) {
+            var pos = _initPos.slice(0);
+            shufflePairs(pos);
+            message.targetPos = new Float32Array(pos);
+            message.duration = 800;
         }
         
         if (_worker) {
@@ -370,8 +397,8 @@ function mouseup(e) {
 function mousemove(e) {
     if (_dragging) {
         var pt = screenToClipSpace({x: e.clientX, y: e.clientY});
-        var dx = pt.x - _dragStart.x;
-        var dy = pt.y - _dragStart.y;
+        var dx = (pt.x - _dragStart.x) / _scale;
+        var dy = (pt.y - _dragStart.y) / _scale;
         _tmpOffset = {x: _offset.x + dx, y: _offset.y + dy};
         _gl.uniform2f(_uOffset, _tmpOffset.x, _tmpOffset.y);
     }
