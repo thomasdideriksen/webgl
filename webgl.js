@@ -6,6 +6,7 @@ var _uNow;
 var _uScale;
 var _scale = 1.0;
 var _uOffset;
+var _offset = {x: 0, y: 0};
 var _timeOffset = Date.now(); // TODO: Update this every time we transition from no-animations-->one-or-more-animations to avoid floating point precision issues
 var _aFromToPos;
 var _aAnim;
@@ -15,6 +16,7 @@ var _worker;
 var _itemCount;
 var _initPos = [];
 var _animations;
+var _canvas;
 
 function compile(shader) {
     _gl.compileShader(shader);
@@ -51,7 +53,8 @@ function getTime() {
 function initWebGL(canvas) {
 
     // Get GL context
-    _gl = canvas.getContext('webgl', {
+    _canvas = canvas;
+    _gl = _canvas.getContext('webgl', {
         antialias: true,
     });
     _gl = WebGLDebugUtils.makeDebugContext(_gl); // Note: For debugging purposes
@@ -84,9 +87,9 @@ function initWebGL(canvas) {
     _uOffset = _gl.getUniformLocation(program, "uOffset");
     _uNow = _gl.getUniformLocation(program, "uNow");
     
-    // Assign uniforms
+    // Initialize uniforms
     _gl.uniform1f(_uScale, _scale);
-    _gl.uniform2f(_uOffset, 0.0, 0.0);
+    _gl.uniform2f(_uOffset, _offset.x, _offset.y);
     
     // Create data
     var dim =  1 / 300;
@@ -202,7 +205,10 @@ function initWebGL(canvas) {
     // Listen for key/mouse events
     _animations = new Animations();
     window.addEventListener('keydown', keydown);
-    window.addEventListener('mousewheel', mousewheel);
+    _canvas.addEventListener('wheel', wheel);
+    _canvas.addEventListener('mousedown', mousedown);
+    window.addEventListener('mouseup', mouseup);
+    window.addEventListener('mousemove', mousemove);
 }
 
 function render() {
@@ -316,13 +322,13 @@ function keydown(e) {
     
 }
 
-function mousewheel(e) {
-    var sign = (e.wheelDeltaY < 0) ? -1 : 1;
+function wheel(e) {
+    var sign = (e.deltaY > 0) ? -1 : 1;
     var zoomFactor = 1.6;
     var to = ((sign < 0) ? 1 / zoomFactor : zoomFactor) * _scale;
     
     _animations.animate({
-        object: this,
+        object: window,
         property: '_scale',
         to: to,
         duration: 800,
@@ -331,6 +337,44 @@ function mousewheel(e) {
             _gl.uniform1f(_uScale, val);
         }
     });   
+}
+
+var _dragging = false;
+var _dragStart;
+var _tmpOffset;
+
+function screenToClipSpace(pt) {
+    var rect = _canvas.getBoundingClientRect();
+    var x = pt.x - rect.left;
+    var y = pt.y - rect.top;
+    var rw = rect.right - rect.left;
+    var rh = rect.bottom - rect.top;
+    return {
+        x: ((x / rw) - 0.5) * 2,
+        y: -((y / rh) - 0.5) * 2
+    }
+}
+
+function mousedown(e) {
+    _dragging = true;
+    _dragStart = screenToClipSpace({x: e.clientX, y: e.clientY});
+}
+
+function mouseup(e) {
+    if (_dragging) {
+        _dragging = false;
+        _offset = _tmpOffset;
+    }
+}
+
+function mousemove(e) {
+    if (_dragging) {
+        var pt = screenToClipSpace({x: e.clientX, y: e.clientY});
+        var dx = pt.x - _dragStart.x;
+        var dy = pt.y - _dragStart.y;
+        _tmpOffset = {x: _offset.x + dx, y: _offset.y + dy};
+        _gl.uniform2f(_uOffset, _tmpOffset.x, _tmpOffset.y);
+    }
 }
 
 var _lastRender;
