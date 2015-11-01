@@ -3,6 +3,9 @@
 var _gl;
 var _ext0;
 var _uNow;
+var _uScale;
+var _scale = 1.0;
+var _uOffset;
 var _timeOffset = Date.now(); // TODO: Update this every time we transition from no-animations-->one-or-more-animations to avoid floating point precision issues
 var _aFromToPos;
 var _aAnim;
@@ -11,6 +14,7 @@ var _aUV;
 var _worker;
 var _itemCount;
 var _initPos = [];
+var _animations;
 
 function compile(shader) {
     _gl.compileShader(shader);
@@ -42,10 +46,6 @@ Attribute.prototype = {
 
 function getTime() {
     return Date.now() - _timeOffset;
-}
-
-function random() {
-    return Math.random() * 2 - 1;
 }
 
 function initWebGL(canvas) {
@@ -80,16 +80,16 @@ function initWebGL(canvas) {
     _gl.useProgram(program);
     
     // Get uniform handles
-    var uScale = _gl.getUniformLocation(program, "uScale");
-    var uOffset = _gl.getUniformLocation(program, "uOffset");
+    _uScale = _gl.getUniformLocation(program, "uScale");
+    _uOffset = _gl.getUniformLocation(program, "uOffset");
     _uNow = _gl.getUniformLocation(program, "uNow");
     
     // Assign uniforms
-    _gl.uniform1f(uScale, 1.0);
-    _gl.uniform2f(uOffset, 0.0, 0.0);
+    _gl.uniform1f(_uScale, _scale);
+    _gl.uniform2f(_uOffset, 0.0, 0.0);
     
     // Create data
-    var dim =  1 / 400;
+    var dim =  1 / 300;
     var dataVertexPos = [
        -dim,  dim, 0, 0, // 0-2
        -dim, -dim, 0, 1, // |/
@@ -163,8 +163,8 @@ function initWebGL(canvas) {
     var onTexLoaded = function(im, tex) {
         _gl.bindTexture(_gl.TEXTURE_2D, tex);
         _gl.texImage2D(_gl.TEXTURE_2D, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, im);
-        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR);
-        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR_MIPMAP_NEAREST);
+        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, _gl.NEAREST);
+        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR_MIPMAP_LINEAR);
         _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_S, _gl.REPEAT);
         _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_T, _gl.REPEAT);
         _gl.generateMipmap(_gl.TEXTURE_2D);
@@ -199,8 +199,10 @@ function initWebGL(canvas) {
         }
     }
     
-    // Listen for keydown
+    // Listen for key/mouse events
+    _animations = new Animations();
     window.addEventListener('keydown', keydown);
+    window.addEventListener('mousewheel', mousewheel);
 }
 
 function render() {
@@ -208,6 +210,7 @@ function render() {
     evaluateFPS();
     _gl.clear(_gl.COLOR_BUFFER_BIT | _gl.DEPTH_BUFFER_BIT);
     _gl.uniform1f(_uNow,  getTime());
+    _animations.apply();
     _ext0.drawArraysInstancedANGLE(_gl.TRIANGLES, 0, 6, _itemCount);
 }
 
@@ -254,13 +257,15 @@ function workerFunc(e) {
         var cy = fy + (ty - fy) * t;
         
         
-        dataFromToPos.push(cx, cy);//, cx + random() * move, cy + random() * move);
+        dataFromToPos.push(cx, cy);
         
         if (initPos) {
             dataFromToPos.push(initPos[j2 + 0], initPos[j2 + 1]);
         } else {
-            var move = 0.4;
-            dataFromToPos.push(cx + random() * move, cy + random() * move);
+            var move = 0.2;
+            var randX = Math.random() - 0.5;
+            var randY = Math.random() - 0.5;
+            dataFromToPos.push(cx + randX * move, cy + randY * move);
         }
         
     }
@@ -309,6 +314,23 @@ function keydown(e) {
         }
     }
     
+}
+
+function mousewheel(e) {
+    var sign = (e.wheelDeltaY < 0) ? -1 : 1;
+    var zoomFactor = 1.6;
+    var to = ((sign < 0) ? 1 / zoomFactor : zoomFactor) * _scale;
+    
+    _animations.animate({
+        object: this,
+        property: '_scale',
+        to: to,
+        duration: 800,
+        easing: _animations.EASE_QUINT_OUT,
+        onupdate: function(val) {
+            _gl.uniform1f(_uScale, val);
+        }
+    });   
 }
 
 var _lastRender;
