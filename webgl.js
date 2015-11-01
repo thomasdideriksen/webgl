@@ -262,7 +262,7 @@ function workerFunc(e) {
         if (initPos) {
             dataFromToPos.push(initPos[j2 + 0], initPos[j2 + 1]);
         } else {
-            var move = 0.2;
+            var move = 0.8;
             var randX = Math.random() - 0.5;
             var randY = Math.random() - 0.5;
             dataFromToPos.push(cx + randX * move, cy + randY * move);
