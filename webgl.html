@@ -8,7 +8,31 @@
 
     <head>
         <meta charset="UTF-8"> 
+        <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
         <title>Experiment</title>
+        
+        <style>
+            html {
+                height: 100%;
+                margin: 0px;
+                padding: 0px;
+                overflow: hidden;
+            }
+            body {
+                height: 100%;
+                margin: 0px;
+                padding: 16px;
+                background: rgba(26, 26, 26, 1);
+                font-family: Open Sans;
+                text-align: center;
+            }
+            #canvas {
+            }
+            #fps {
+                color: #ffffff;
+                font-size: 20px;
+            }
+        </style>
         
         <script id="vertexShader" type="x-shader/x-vertex">
             uniform float uNow;

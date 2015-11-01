@@ -103,24 +103,22 @@ function initWebGL(canvas) {
     var dataUVScaleOffsets = [];
     var dataAnim = [];
     var startTime = getTime();
-    for (var y = 0; y <= 1; y += dim) {
-        for (var x = 0; x <= 1; x += dim) {
+    for (var y = 0; y <= 1 - dim; y += dim) {
+        for (var x = 0; x <= 1 - dim; x += dim) {
             
             Array.prototype.push.apply(dataUVScaleOffsets, [dim, dim, x, y]);
-            
-            var initX = ((x) - 0.5) * 2;
-            var initY = ((1 - (y)) - 0.5) * 2;
-            Array.prototype.push.apply(dataFromToPos, [0, 0, initX, initY]);
+                        
+            var initX = 2 * ((x) - 0.5);
+            var initY = 2 * ((1 - y) - 0.5);
             _initPos.push(initX, initY);
+            Array.prototype.push.apply(dataFromToPos, [0, 0, initX, initY]);
             
-            Array.prototype.push.apply(dataAnim, [
-                startTime, 4000, 0, 0
-            ]);
+            Array.prototype.push.apply(dataAnim, [startTime, 4000, 0, 0]);
         }
     }
     
     _itemCount = dataUVScaleOffsets.length / 4;
-    console.log('Items: ' + _itemCount);
+    console.log('Quads: ' + _itemCount);
     
     // Assign from-to positions
     _aFromToPos = new Attribute({
@@ -189,7 +187,7 @@ function initWebGL(canvas) {
     _gl.enable(_gl.CULL_FACE);
     _gl.cullFace(_gl.BACK);
     _gl.disable( _gl.BLEND );
-    _gl.clearColor(0.1, 0.1, 0.1, 1);
+    //_gl.clearColor(0.1, 0.1, 0.1, 1);
     
     // Begin rendering
     requestAnimationFrame(render);
