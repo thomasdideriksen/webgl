@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+
+<!-- http://webglsamples.org/google-io/2011/index.html -->
+<!-- https://msdn.microsoft.com/en-us/library/dn798644(v=vs.85).aspx -->
+<!-- https://www.khronos.org/registry/webgl/extensions/ANGLE_instanced_arrays/ -->
+
+<html>
+
+    <head>
+        <meta charset="UTF-8"> 
+        <title>Experiment</title>
+        
+        <script id="vertexShader" type="x-shader/x-vertex">
+            uniform float uNow;
+            uniform float uScale;
+            uniform vec2 uOffset;
+            attribute vec4 aFromToPos;
+            attribute vec4 aAnim;
+            attribute vec4 aVertexPos;
+            attribute vec4 aUVScaleOffset;
+            varying vec2 vUV;
+            void main(void) {
+                float dt = uNow - aAnim.x;
+                float t = dt / aAnim.y;
+                t = max(0.0, t);
+                t = min(1.0, t);
+                
+                t -= 1.0;
+                t = t * t * t * t * t + 1.0;
+                
+                vec2 posFrom = aFromToPos.xy;
+                vec2 posTo = aFromToPos.zw;
+                
+                vec2 posDelta = posTo - posFrom;
+                vec2 animOffset = posFrom + posDelta * vec2(t);
+                            
+                vUV = aVertexPos.zw * aUVScaleOffset.xy + aUVScaleOffset.zw;
+            
+                gl_Position = vec4((aVertexPos.xy + uOffset + animOffset) * vec2(uScale), 0, 1);
+            }
+        </script>
+        
+        <script id="fragmentShader" type="x-shader/x-fragment">
+            precision mediump float;
+            uniform sampler2D uSampler;
+            varying vec2 vUV;
+            void main(void) {
+                gl_FragColor = texture2D(uSampler, vUV);
+            }
+        </script>
+        
+        <script src="webgl-debug.js"></script>
+        <script src="webgl.js"></script>
+        <script>
+            function init() {
+                initWebGL(document.getElementById('canvas'));
+            }
+        </script>
+    </head>
+    
+    <body onload='init()'>
+        <canvas id='canvas' width='750' height='750'></canvas>
+        <div id='fps'></div>
+    </body>
+
+</html>
