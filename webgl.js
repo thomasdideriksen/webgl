@@ -10,7 +10,7 @@ var _aVertexPos;
 var _aUV;
 var _worker;
 var _itemCount;
-var _initPos;
+var _initPos = [];
 
 function compile(shader) {
     _gl.compileShader(shader);
@@ -89,31 +89,24 @@ function initWebGL(canvas) {
     _gl.uniform2f(uOffset, 0.0, 0.0);
     
     // Create data
-    var triangleDim =  0.005;
+    var dim =  1 / 500;
     var dataVertexPos = [
-       -triangleDim,  triangleDim, 0, 0, // 0-2
-       -triangleDim, -triangleDim, 0, 1, // |/
-        triangleDim,  triangleDim, 1, 0, // 1
+       -dim,  dim, 0, 0, // 0-2
+       -dim, -dim, 0, 1, // |/
+        dim,  dim, 1, 0, // 1
        
-       -triangleDim, -triangleDim, 0, 1, //   2
-        triangleDim, -triangleDim, 1, 1, //  /|
-        triangleDim,  triangleDim, 1, 0, // 0-1
-    ];
-
+       -dim, -dim, 0, 1, //   2
+        dim, -dim, 1, 1, //  /|
+        dim,  dim, 1, 0, // 0-1
+    ]
     var dataFromToPos = [];
     var dataUVScaleOffsets = [];
     var dataAnim = [];
     var startTime = getTime();
-    _initPos = [];
-    for (var y = 0; y < 1; y += triangleDim) {
-        for (var x = 0; x < 1; x += triangleDim) {
+    for (var y = 0; y <= 1; y += dim) {
+        for (var x = 0; x <= 1; x += dim) {
             
-            Array.prototype.push.apply(dataUVScaleOffsets, [
-                triangleDim,
-                triangleDim,
-                x,
-                y
-            ]);
+            Array.prototype.push.apply(dataUVScaleOffsets, [dim, dim, x, y]);
             
             var initX = ((x) - 0.5) * 2;
             var initY = ((1 - (y)) - 0.5) * 2;
@@ -308,7 +301,7 @@ function keydown(e) {
             startTime: Date.now()};
         
         if (reset) {
-            message.initPos = _initPos;
+            message.initPos = new Float32Array(_initPos);
         }
         
         if (_worker) {
