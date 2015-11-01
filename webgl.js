@@ -89,7 +89,7 @@ function initWebGL(canvas) {
     _gl.uniform2f(uOffset, 0.0, 0.0);
     
     // Create data
-    var dim =  1 / 500;
+    var dim =  1 / 400;
     var dataVertexPos = [
        -dim,  dim, 0, 0, // 0-2
        -dim, -dim, 0, 1, // |/
