@@ -28,6 +28,10 @@ Animations.prototype = {
             onupdate: params.onupdate,
             delay: params.delay ? params.delay : 0
         };
+        return {
+            objectId: objectId,
+            property: params.property
+        }
     },
     
     active: function() {
@@ -37,6 +41,14 @@ Animations.prototype = {
             break;
         }
         return active;
+    },
+    
+    abort: function(id) {
+        if (id && id.objectId in this.animations) {
+            if (id.property in this.animations[id.objectId]) {
+                delete this.animations[id.objectId][id.property];
+            }
+        }
     },
     
     apply: function() {

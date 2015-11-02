@@ -166,7 +166,7 @@ function initWebGL(canvas) {
     var onTexLoaded = function(im, tex) {
         _gl.bindTexture(_gl.TEXTURE_2D, tex);
         _gl.texImage2D(_gl.TEXTURE_2D, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, im);
-        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, _gl.NEAREST);
+        _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR);
         _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR_MIPMAP_LINEAR);
         _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_S, _gl.REPEAT);
         _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_T, _gl.REPEAT);
@@ -351,7 +351,7 @@ function keydown(e) {
 
 function wheel(e) {
     var sign = (e.deltaY > 0) ? -1 : 1;
-    var zoomFactor = 1.6;
+    var zoomFactor = 1.9;
     var to = ((sign < 0) ? 1 / zoomFactor : zoomFactor) * _scale;
     
     _animations.animate({
@@ -369,6 +369,10 @@ function wheel(e) {
 var _dragging = false;
 var _dragStart;
 var _tmpOffset;
+var _animIdX;
+var _animIdY;
+var _lastDelta;
+var _lastPoint;
 
 function screenToClipSpace(pt) {
     var rect = _canvas.getBoundingClientRect();
@@ -384,19 +388,59 @@ function screenToClipSpace(pt) {
 
 function mousedown(e) {
     _dragging = true;
-    _dragStart = screenToClipSpace({x: e.clientX, y: e.clientY});
+    _dragStart = _lastPoint = screenToClipSpace({x: e.clientX, y: e.clientY});
+    _animations.abort(_animIdX);
+    _animations.abort(_animIdY);
 }
 
 function mouseup(e) {
     if (_dragging) {
         _dragging = false;
         _offset = _tmpOffset;
+        
+        if (_lastDelta) {
+            
+            var dt = (Date.now() - _lastDelta.timeStamp) + 5;
+            var scale = (1 / dt) * (1 / _scale) * 120 ;
+            
+           _animIdX = _animations.animate({
+                object: _offset,
+                property: 'x',
+                to: _offset.x + _lastDelta.dx * scale,
+                duration: 1200,
+                easing: _animations.EASE_QUINT_OUT,
+                onupdate: function(val) {
+                    _offset.x = val;
+                    _gl.uniform2f(_uOffset, _offset.x, _offset.y);
+                }
+            });
+            
+            _animIdY = _animations.animate({
+                object: _offset,
+                property: 'y',
+                to: _offset.y + _lastDelta.dy * scale,
+                duration: 1200,
+                easing: _animations.EASE_QUINT_OUT,
+                onupdate: function(val) {
+                    _offset.y = val;
+                    _gl.uniform2f(_uOffset, _offset.x, _offset.y);
+                }
+            });   
+        }
     }
 }
 
 function mousemove(e) {
     if (_dragging) {
         var pt = screenToClipSpace({x: e.clientX, y: e.clientY});
+        
+        _lastDelta = {
+            dx: pt.x - _lastPoint.x, 
+            dy: pt.y - _lastPoint.y,
+            timeStamp: Date.now()
+        };
+        
+        _lastPoint = pt;
         var dx = (pt.x - _dragStart.x) / _scale;
         var dy = (pt.y - _dragStart.y) / _scale;
         _tmpOffset = {x: _offset.x + dx, y: _offset.y + dy};
