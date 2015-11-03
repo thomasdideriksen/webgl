@@ -296,11 +296,9 @@ function workerFunc(e) {
     }
         
     var dataAnim = [];
-    var dataFromToPos = [];
-    
+    var dataFromToPos = [];   
     var nowOld = Date.now() - e.data.oldTimeOffset;
-    var nowNew = Date.now() - e.data.newTimeOffset;
-    
+
     for (var j = 0; j < itemCount; j++) {
 
         var j4 = 4 * j;
@@ -343,14 +341,14 @@ function workerFunc(e) {
         var actualDurationRandomness = durationRandomness || 0;
         var computedDuration = actualDuration + Math.random() * actualDurationRandomness;
         
-        dataAnim.push(nowNew, computedDuration, theta0, theta1);
+        dataAnim.push(0, computedDuration, theta0, theta1);
     }
     
     return {
         anim: new Float32Array(dataAnim), 
         fromToPos: new Float32Array(dataFromToPos),
         workerFuncStartTime: e.data.workerFuncStartTime,
-        newTimeOffset: e.data.newTimeOffset
+        newTimeOffset: Date.now()
     }
 }
 
@@ -388,7 +386,6 @@ function keydown(e) {
         anim: _aAnim.data, 
         fromToPos: _aFromToPos.data, 
         oldTimeOffset: _timeOffset,
-        newTimeOffset: Date.now(),
         itemCount: _itemCount,
         initPos: new Float32Array(_initPos),
         keyCode: e.keyCode,
