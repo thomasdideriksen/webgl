@@ -46,10 +46,6 @@ Attribute.prototype = {
     },
 };
 
-function getTime() {
-    return Date.now() - _timeOffset;
-}
-
 function initWebGL(canvas) {
 
     // Get GL context
@@ -105,7 +101,7 @@ function initWebGL(canvas) {
     var dataFromToPos = [];
     var dataUVScaleOffsets = [];
     var dataAnim = [];
-    var startTime = getTime();
+    var startTime = Date.now() - _timeOffset;
     for (var y = 0; y <= 1 - dim; y += dim) {
         for (var x = 0; x <= 1 - dim; x += dim) {
             
@@ -215,7 +211,8 @@ function render() {
     requestAnimationFrame(render);
     evaluateFPS();
     _gl.clear(_gl.COLOR_BUFFER_BIT | _gl.DEPTH_BUFFER_BIT);
-    _gl.uniform1f(_uNow,  getTime());
+    console.log('Time offset: ' + _timeOffset);
+    _gl.uniform1f(_uNow,  Date.now() - _timeOffset);
     _animations.apply();
     _ext0.drawArraysInstancedANGLE(_gl.TRIANGLES, 0, 6, _itemCount);
 }
@@ -239,7 +236,7 @@ function workerFunc(e) {
     var dataAnim = [];
     var dataFromToPos = [];
     
-    var now = Date.now() - e.data.timeOffset;
+    var now = Date.now() - e.data.oldTimeOffset;
     
     for (var j = 0; j < itemCount; j++) {
 
@@ -277,7 +274,7 @@ function workerFunc(e) {
     }
     
     var duration = e.data.duration || 3000;
-    var now = Date.now() - e.data.timeOffset;
+    var now = Date.now() - e.data.newTimeOffset;
     for (var j = 0; j < itemCount; j++) {
         var j4 = 4 * j;
         dataAnim.push(now, duration, 0, 0);
@@ -286,12 +283,14 @@ function workerFunc(e) {
     return {
         anim: new Float32Array(dataAnim), 
         fromToPos: new Float32Array(dataFromToPos),
-        startTime: e.data.startTime
+        startTime: e.data.startTime,
+        newTimeOffset: e.data.newTimeOffset
     }
 }
 
 function setResult(result) {
     console.log('Worker: ' + (Date.now() - result.startTime) + ' ms');
+    _timeOffset = result.newTimeOffset;
     _aAnim.setData(result.anim);
     _aFromToPos.setData(result.fromToPos);
 }
@@ -324,7 +323,8 @@ function keydown(e) {
         var message = {
             anim: _aAnim.data, 
             fromToPos: _aFromToPos.data, 
-            timeOffset: _timeOffset,
+            oldTimeOffset: _timeOffset,
+            newTimeOffset: Date.now(),
             itemCount: _itemCount, 
             startTime: Date.now()};
         
