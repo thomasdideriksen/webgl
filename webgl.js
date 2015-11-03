@@ -229,7 +229,71 @@ function workerFunc(e) {
     var anim = e.data.anim;
     var fromToPos = e.data.fromToPos;
     var itemCount = e.data.itemCount;
-    var targetPos = e.data.targetPos;
+    var targetPos;
+    var duration; 
+    var durationRandomness = 1500;
+    var theta;
+    var initPos = e.data.initPos;
+    
+    var explode = (e.data.keyCode == 32);
+    var reset = (e.data.keyCode == 82);
+    var swap = (e.data.keyCode == 83);
+    var piles = (e.data.keyCode >= 49 && e.data.keyCode <= 57);
+        
+    if (explode || reset || swap || piles) {
+        
+        if (reset) {
+            targetPos = initPos;
+            duration = 800;
+            durationRandomness = 600;
+            theta = 0;
+        }
+        
+        if (swap) {
+            var pos = initPos;
+            shufflePairs(pos);
+            targetPos = new Float32Array(pos);
+            duration = 800;
+            theta = 0;
+        }
+        
+        if (piles) {
+            var pileCount = e.data.keyCode - 48;
+            var pos = [];
+            var createPilePos = function(x, y) {
+                var r = Math.random() * 0.2 + Math.random() * Math.random() * 0.04;
+                var t = Math.random() * 2 * Math.PI;
+                return {
+                    x: x + r * Math.cos(t),
+                    y: y + r * Math.sin(t)
+                };
+            }
+            var dist = (pileCount == 1) ? 0.0 : 0.7;
+            var itemsPerPile = Math.round(itemCount / pileCount);
+            var tDelta = (2 * Math.PI) / pileCount;
+            var idx = 0;
+            var t = 0;
+            for (var i = 0; i < pileCount; i++) {
+                var pileX = dist * Math.cos(t);
+                var pileY = dist * Math.sin(t);
+                t += tDelta;
+                var lastPile = (i == pileCount - 1);
+                var first = idx;
+                var last = lastPile ? itemCount : idx + itemsPerPile;
+                for (var j = first; j < last; j++) {
+                    var pt = createPilePos(pileX, pileY);
+                    pos.push(pt.x, pt.y);
+                }
+                idx += itemsPerPile;
+            }
+            targetPos = new Float32Array(pos);
+            shufflePairs(targetPos);
+            duration = 800;
+            durationRandomness = 3000;
+        }
+    } else {
+        return;
+    }
         
     var dataAnim = [];
     var dataFromToPos = [];
@@ -271,15 +335,15 @@ function workerFunc(e) {
         
         var theta0 = anim[j4 + 2] + (anim[j4 + 3] - anim[j4 + 2]) * t;
         theta0 %=  (2 * Math.PI);
-        var theta1 = e.data.theta;
+        var theta1 = theta;
         if (typeof theta1 === 'undefined') {
             theta1 = theta0 + 2 * Math.PI + Math.random() * 4 * Math.PI;
         }
-        var duration = e.data.duration;
-        if (typeof duration === 'undefined') {
-            duration = 2500 + Math.random() * 5000;
-        }
-        dataAnim.push(nowNew, duration, theta0, theta1);
+        var actualDuration = duration || 2500;
+        var actualDurationRandomness = durationRandomness || 0;
+        var computedDuration = actualDuration + Math.random() * actualDurationRandomness;
+        
+        dataAnim.push(nowNew, computedDuration, theta0, theta1);
     }
     
     return {
@@ -291,6 +355,9 @@ function workerFunc(e) {
 }
 
 function setResult(result) {
+    if (typeof result === 'undefined') {
+        return;
+    }
     console.log('Worker: ' + (Date.now() - result.workerFuncStartTime) + ' ms');
     _timeOffset = result.newTimeOffset;
     _aAnim.setData(result.anim);
@@ -317,75 +384,21 @@ function shufflePairs(array) {
 
 function keydown(e) {
     
-    var reset = (e.keyCode == 82);
-    var swap = (e.keyCode == 83);
-    var piles = (e.keyCode >= 49 && e.keyCode <= 57);
+    var message = {
+        anim: _aAnim.data, 
+        fromToPos: _aFromToPos.data, 
+        oldTimeOffset: _timeOffset,
+        newTimeOffset: Date.now(),
+        itemCount: _itemCount,
+        initPos: new Float32Array(_initPos),
+        keyCode: e.keyCode,
+        workerFuncStartTime: Date.now()};
         
-    if (e.keyCode == 32 || reset || swap || piles) {
-        
-        var message = {
-            anim: _aAnim.data, 
-            fromToPos: _aFromToPos.data, 
-            oldTimeOffset: _timeOffset,
-            newTimeOffset: Date.now(),
-            itemCount: _itemCount, 
-            workerFuncStartTime: Date.now()};
-        
-        if (reset) {
-            message.targetPos = new Float32Array(_initPos);
-            message.duration = 800;
-            message.theta = 0;
-        }
-        
-        if (swap) {
-            var pos = _initPos.slice(0);
-            shufflePairs(pos);
-            message.targetPos = new Float32Array(pos);
-            message.duration = 800;
-            message.theta = 0;
-        }
-        
-        if (piles) {
-            var pileCount = e.keyCode - 48;
-            var pos = [];
-            var createPilePos = function(x, y) {
-                var r = Math.random() * 0.2 + Math.random() * Math.random() * 0.04;
-                var t = Math.random() * 2 * Math.PI;
-                return {
-                    x: x + r * Math.cos(t),
-                    y: y + r * Math.sin(t)
-                };
-            }
-            var dist = (pileCount == 1) ? 0.0 : 0.7;
-            var itemsPerPile = Math.round(_itemCount / pileCount);
-            var tDelta = (2 * Math.PI) / pileCount;
-            var idx = 0;
-            var t = 0;
-            for (var i = 0; i < pileCount; i++) {
-                var pileX = dist * Math.cos(t);
-                var pileY = dist * Math.sin(t);
-                t += tDelta;
-                var lastPile = (i == pileCount - 1);
-                var first = idx;
-                var last = lastPile ? _itemCount : idx + itemsPerPile;
-                for (var j = first; j < last; j++) {
-                    var pt = createPilePos(pileX, pileY);
-                    pos.push(pt.x, pt.y);
-                }
-                idx += itemsPerPile;
-            }
-            shufflePairs(pos);
-            message.targetPos = new Float32Array(pos);
-            message.duration = 1000;
-        }
-        
-        if (_worker) {
-            _worker.postMessage(message, createTransferList(message));
-        } else {
-            setResult(workerFunc({data: message}));
-        }
+    if (_worker) {
+        _worker.postMessage(message, createTransferList(message));
+    } else {
+        setResult(workerFunc({data: message}));
     }
-    
 }
 
 var _dragging = false;
