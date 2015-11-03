@@ -44,6 +44,7 @@
             attribute vec4 aUVScaleOffset;
             varying vec2 vUV;
             void main(void) {
+                
                 float dt = uNow - aAnim.x;
                 float t = dt / aAnim.y;
                 t = max(0.0, t);
@@ -57,10 +58,21 @@
                 
                 vec2 posDelta = posTo - posFrom;
                 vec2 animOffset = posFrom + posDelta * vec2(t);
-                            
-                vUV = aVertexPos.zw * aUVScaleOffset.xy + aUVScaleOffset.zw;
+                
+                float thetaFrom = aAnim.z;
+                float thetaTo = aAnim.w;
+                float thetaDelta = thetaTo - thetaFrom;
+                float theta = thetaFrom + thetaDelta * t;
+                vec2 rotatedVertexPos;
+                rotatedVertexPos.x = aVertexPos.x * cos(theta) - aVertexPos.y * sin(theta);
+                rotatedVertexPos.y = aVertexPos.x * sin(theta) + aVertexPos.y * cos(theta);
+                
+                vec2 uv = aVertexPos.zw;
+                vec2 uvScale = aUVScaleOffset.xy;
+                vec2 uvOffset = aUVScaleOffset.zw;
+                vUV = uv * uvScale + uvOffset;
             
-                gl_Position = vec4((aVertexPos.xy + uOffset + animOffset) * vec2(uScale), 0, 1);
+                gl_Position = vec4((rotatedVertexPos + uOffset + animOffset) * vec2(uScale), 0, 1);
             }
         </script>
         

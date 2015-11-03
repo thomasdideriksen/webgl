@@ -7,7 +7,7 @@ var _uScale;
 var _scale = 1.0;
 var _uOffset;
 var _offset = {x: 0, y: 0};
-var _timeOffset = Date.now(); // TODO: Update this every time we transition from no-animations-->one-or-more-animations to avoid floating point precision issues
+var _timeOffset = Date.now();
 var _aFromToPos;
 var _aAnim;
 var _aVertexPos;
@@ -42,7 +42,6 @@ Attribute.prototype = {
         this.data = data;
         _gl.bindBuffer(_gl.ARRAY_BUFFER, this.buffer);
         _gl.bufferData(_gl.ARRAY_BUFFER, data, this.props.usage);
-        
     },
 };
 
@@ -88,7 +87,7 @@ function initWebGL(canvas) {
     _gl.uniform2f(_uOffset, _offset.x, _offset.y);
     
     // Create data
-    var dim =  1 / 300;
+    var dim =  1 / 400;
     var dataVertexPos = [
        -dim,  dim, 0, 0, // 0-2
        -dim, -dim, 0, 1, // |/
@@ -211,7 +210,6 @@ function render() {
     requestAnimationFrame(render);
     evaluateFPS();
     _gl.clear(_gl.COLOR_BUFFER_BIT | _gl.DEPTH_BUFFER_BIT);
-    console.log('Time offset: ' + _timeOffset);
     _gl.uniform1f(_uNow,  Date.now() - _timeOffset);
     _animations.apply();
     _ext0.drawArraysInstancedANGLE(_gl.TRIANGLES, 0, 6, _itemCount);
@@ -232,18 +230,19 @@ function workerFunc(e) {
     var fromToPos = e.data.fromToPos;
     var itemCount = e.data.itemCount;
     var targetPos = e.data.targetPos;
-    
+        
     var dataAnim = [];
     var dataFromToPos = [];
     
-    var now = Date.now() - e.data.oldTimeOffset;
+    var nowOld = Date.now() - e.data.oldTimeOffset;
+    var nowNew = Date.now() - e.data.newTimeOffset;
     
     for (var j = 0; j < itemCount; j++) {
 
         var j4 = 4 * j;
         var j2 = 2 * j;
 
-        var dt = now - anim[j4 + 0];
+        var dt = nowOld - anim[j4 + 0];
         var t = dt / anim[j4 + 1];
         t = Math.max(0, t);
         t = Math.min(1, t);
@@ -259,37 +258,40 @@ function workerFunc(e) {
         var cx = fx + (tx - fx) * t;
         var cy = fy + (ty - fy) * t;
         
-        
         dataFromToPos.push(cx, cy);
         
         if (targetPos) {
             dataFromToPos.push(targetPos[j2 + 0], targetPos[j2 + 1]);
         } else {
-            var move = 0.8;
+            var move = 1.2;
             var randX = Math.random() - 0.5;
             var randY = Math.random() - 0.5;
             dataFromToPos.push(cx + randX * move, cy + randY * move);
         }
         
-    }
-    
-    var duration = e.data.duration || 3000;
-    var now = Date.now() - e.data.newTimeOffset;
-    for (var j = 0; j < itemCount; j++) {
-        var j4 = 4 * j;
-        dataAnim.push(now, duration, 0, 0);
+        var theta0 = anim[j4 + 2] + (anim[j4 + 3] - anim[j4 + 2]) * t;
+        theta0 %=  (2 * Math.PI);
+        var theta1 = e.data.theta;
+        if (typeof theta1 === 'undefined') {
+            theta1 = theta0 + 2 * Math.PI + Math.random() * 4 * Math.PI;
+        }
+        var duration = e.data.duration;
+        if (typeof duration === 'undefined') {
+            duration = 2500 + Math.random() * 5000;
+        }
+        dataAnim.push(nowNew, duration, theta0, theta1);
     }
     
     return {
         anim: new Float32Array(dataAnim), 
         fromToPos: new Float32Array(dataFromToPos),
-        startTime: e.data.startTime,
+        workerFuncStartTime: e.data.workerFuncStartTime,
         newTimeOffset: e.data.newTimeOffset
     }
 }
 
 function setResult(result) {
-    console.log('Worker: ' + (Date.now() - result.startTime) + ' ms');
+    console.log('Worker: ' + (Date.now() - result.workerFuncStartTime) + ' ms');
     _timeOffset = result.newTimeOffset;
     _aAnim.setData(result.anim);
     _aFromToPos.setData(result.fromToPos);
@@ -326,11 +328,12 @@ function keydown(e) {
             oldTimeOffset: _timeOffset,
             newTimeOffset: Date.now(),
             itemCount: _itemCount, 
-            startTime: Date.now()};
+            workerFuncStartTime: Date.now()};
         
         if (reset) {
             message.targetPos = new Float32Array(_initPos);
             message.duration = 800;
+            message.theta = 0;
         }
         
         if (swap) {
@@ -338,6 +341,7 @@ function keydown(e) {
             shufflePairs(pos);
             message.targetPos = new Float32Array(pos);
             message.duration = 800;
+            message.theta = 0;
         }
         
         if (_worker) {
@@ -347,23 +351,6 @@ function keydown(e) {
         }
     }
     
-}
-
-function wheel(e) {
-    var sign = (e.deltaY > 0) ? -1 : 1;
-    var zoomFactor = 1.9;
-    var to = ((sign < 0) ? 1 / zoomFactor : zoomFactor) * _scale;
-    
-    _animations.animate({
-        object: window,
-        property: '_scale',
-        to: to,
-        duration: 800,
-        easing: _animations.EASE_QUINT_OUT,
-        onupdate: function(val) {
-            _gl.uniform1f(_uScale, val);
-        }
-    });   
 }
 
 var _dragging = false;
@@ -446,6 +433,23 @@ function mousemove(e) {
         _tmpOffset = {x: _offset.x + dx, y: _offset.y + dy};
         _gl.uniform2f(_uOffset, _tmpOffset.x, _tmpOffset.y);
     }
+}
+
+function wheel(e) {
+    var sign = (e.deltaY > 0) ? -1 : 1;
+    var zoomFactor = 1.9;
+    var to = ((sign < 0) ? 1 / zoomFactor : zoomFactor) * _scale;
+    
+    _animations.animate({
+        object: window,
+        property: '_scale',
+        to: to,
+        duration: 800,
+        easing: _animations.EASE_QUINT_OUT,
+        onupdate: function(val) {
+            _gl.uniform1f(_uScale, val);
+        }
+    });   
 }
 
 var _lastRender;
