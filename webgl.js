@@ -319,8 +319,9 @@ function keydown(e) {
     
     var reset = (e.keyCode == 82);
     var swap = (e.keyCode == 83);
-    
-    if (e.keyCode == 32 || reset || swap) {
+    var piles = (e.keyCode >= 49 && e.keyCode <= 57);
+        
+    if (e.keyCode == 32 || reset || swap || piles) {
         
         var message = {
             anim: _aAnim.data, 
@@ -342,6 +343,42 @@ function keydown(e) {
             message.targetPos = new Float32Array(pos);
             message.duration = 800;
             message.theta = 0;
+        }
+        
+        if (piles) {
+            var pileCount = e.keyCode - 48;
+            var pos = [];
+            var createPilePos = function(x, y) {
+                var r = Math.random() * 0.2;
+                var t = Math.random() * 2 * Math.PI;
+                return {
+                    x: x + r * Math.cos(t),
+                    y: y + r * Math.sin(t)
+                };
+            }
+            var dist = (pileCount == 1) ? 0.0 : 0.7;
+            var itemsPerPile = Math.round(_itemCount / pileCount);
+            var tDelta = (2 * Math.PI) / pileCount;
+            var idx = 0;
+            var t = 0;
+            for (var i = 0; i < pileCount; i++) {
+                var pileX = dist * Math.cos(t);
+                var pileY = dist * Math.sin(t);
+                t += tDelta;
+                var first = idx;
+                var last = idx + itemsPerPile
+                if (_itemCount - last < itemsPerPile) {
+                    last = _itemCount;
+                }
+                for (var j = first; j < last; j++) {
+                    var pt = createPilePos(pileX, pileY);
+                    pos.push(pt.x, pt.y);
+                }
+                idx += itemsPerPile;
+            }
+            shufflePairs(pos);
+            message.targetPos = new Float32Array(pos);
+            message.duration = 1000;
         }
         
         if (_worker) {
