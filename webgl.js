@@ -109,9 +109,9 @@ function initWebGL(canvas) {
             var initX = 2 * ((x) - 0.5);
             var initY = 2 * ((1 - y) - 0.5);
             _initPos.push(initX, initY);
-            Array.prototype.push.apply(dataFromToPos, [0, 0, initX, initY]);
+            Array.prototype.push.apply(dataFromToPos, [initX, initY, initX, initY]);
             
-            Array.prototype.push.apply(dataAnim, [startTime, 4000, 0, 0]);
+            Array.prototype.push.apply(dataAnim, [startTime, 0, 0, 0]);
         }
     }
     
