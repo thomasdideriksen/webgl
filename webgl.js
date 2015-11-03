@@ -349,7 +349,7 @@ function keydown(e) {
             var pileCount = e.keyCode - 48;
             var pos = [];
             var createPilePos = function(x, y) {
-                var r = Math.random() * 0.2;
+                var r = Math.random() * 0.2 + Math.random() * Math.random() * 0.04;
                 var t = Math.random() * 2 * Math.PI;
                 return {
                     x: x + r * Math.cos(t),
@@ -365,11 +365,9 @@ function keydown(e) {
                 var pileX = dist * Math.cos(t);
                 var pileY = dist * Math.sin(t);
                 t += tDelta;
+                var lastPile = (i == pileCount - 1);
                 var first = idx;
-                var last = idx + itemsPerPile
-                if (_itemCount - last < itemsPerPile) {
-                    last = _itemCount;
-                }
+                var last = lastPile ? _itemCount : idx + itemsPerPile;
                 for (var j = first; j < last; j++) {
                     var pt = createPilePos(pileX, pileY);
                     pos.push(pt.x, pt.y);
