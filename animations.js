@@ -1,12 +1,15 @@
-function Animations() {
+var ANIM = {};
+
+ANIM.EASE_CUBIC_OUT = 1;
+ANIM.EASE_QUINT_OUT = 2;
+
+ANIM.Animations = function() {
     this.animations = {};
     this.uniqueId = 0;
 }
-Animations.prototype = {
-    EASE_CUBIC_OUT: 1,
-    EASE_QUINT_OUT: 2,
+ANIM.Animations.prototype = {
     
-    constructor: Animations,
+    constructor: ANIM.Animations,
 
     animate: function(params) {
         if (!params.object.uniqueAnimationId) {
@@ -43,7 +46,7 @@ Animations.prototype = {
         return active;
     },
     
-    abort: function(id) {
+    cancel: function(id) {
         if (id && id.objectId in this.animations) {
             if (id.property in this.animations[id.objectId]) {
                 delete this.animations[id.objectId][id.property];
@@ -51,7 +54,7 @@ Animations.prototype = {
         }
     },
     
-    apply: function() {
+    tick: function() {
         for (var objectId in this.animations) {
             for (var property in this.animations[objectId]) {
                 var anim = this.animations[objectId][property];
@@ -65,11 +68,11 @@ Animations.prototype = {
                         default:
                             t = dt; 
                             break;
-                        case this.EASE_CUBIC_OUT:
+                        case ANIM.EASE_CUBIC_OUT:
                             t = dt - 1.0;
                             t = t * t * t + 1.0;
                             break;
-                        case this.EASE_QUINT_OUT:
+                        case ANIM.EASE_QUINT_OUT:
                             t = dt - 1.0;
                             t = t * t * t * t * t + 1.0;
                             break;

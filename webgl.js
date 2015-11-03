@@ -198,7 +198,7 @@ function initWebGL(canvas) {
     }
     
     // Listen for key/mouse events
-    _animations = new Animations();
+    _animations = new ANIM.Animations();
     window.addEventListener('keydown', keydown);
     _canvas.addEventListener('wheel', wheel);
     _canvas.addEventListener('mousedown', mousedown);
@@ -211,7 +211,7 @@ function render() {
     evaluateFPS();
     _gl.clear(_gl.COLOR_BUFFER_BIT | _gl.DEPTH_BUFFER_BIT);
     _gl.uniform1f(_uNow,  Date.now() - _timeOffset);
-    _animations.apply();
+    _animations.tick();
     _ext0.drawArraysInstancedANGLE(_gl.TRIANGLES, 0, 6, _itemCount);
 }
 
@@ -376,8 +376,8 @@ function screenToClipSpace(pt) {
 function mousedown(e) {
     _dragging = true;
     _dragStart = _lastPoint = screenToClipSpace({x: e.clientX, y: e.clientY});
-    _animations.abort(_animIdX);
-    _animations.abort(_animIdY);
+    _animations.cancel(_animIdX);
+    _animations.cancel(_animIdY);
 }
 
 function mouseup(e) {
@@ -395,7 +395,7 @@ function mouseup(e) {
                 property: 'x',
                 to: _offset.x + _lastDelta.dx * scale,
                 duration: 1200,
-                easing: _animations.EASE_QUINT_OUT,
+                easing: ANIM.EASE_QUINT_OUT,
                 onupdate: function(val) {
                     _offset.x = val;
                     _gl.uniform2f(_uOffset, _offset.x, _offset.y);
@@ -407,7 +407,7 @@ function mouseup(e) {
                 property: 'y',
                 to: _offset.y + _lastDelta.dy * scale,
                 duration: 1200,
-                easing: _animations.EASE_QUINT_OUT,
+                easing: ANIM.EASE_QUINT_OUT,
                 onupdate: function(val) {
                     _offset.y = val;
                     _gl.uniform2f(_uOffset, _offset.x, _offset.y);
@@ -445,7 +445,7 @@ function wheel(e) {
         property: '_scale',
         to: to,
         duration: 800,
-        easing: _animations.EASE_QUINT_OUT,
+        easing: ANIM.EASE_QUINT_OUT,
         onupdate: function(val) {
             _gl.uniform1f(_uScale, val);
         }
