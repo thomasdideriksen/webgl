@@ -495,7 +495,6 @@ function mouseup(e) {
                 duration: 1200,
                 easing: ANIM.EASE_QUINT_OUT,
                 onupdate: function(val) {
-                    _offset.x = val;
                     _gl.uniform2f(_uOffset, _offset.x, _offset.y);
                 }
             });
@@ -507,7 +506,6 @@ function mouseup(e) {
                 duration: 1200,
                 easing: ANIM.EASE_QUINT_OUT,
                 onupdate: function(val) {
-                    _offset.y = val;
                     _gl.uniform2f(_uOffset, _offset.x, _offset.y);
                 }
             });   
