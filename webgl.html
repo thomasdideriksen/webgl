@@ -78,8 +78,10 @@
                 vec2 uvScale = aUVScaleOffset.xy;
                 vec2 uvOffset = aUVScaleOffset.zw;
                 vUV = uv * uvScale + uvOffset;
+                
+                float randomZ = sin(posFrom.x); // Make the quads look more random when piled on-top of each other
             
-                gl_Position = vec4((rotatedVertexPos + uOffset + animOffset) * vec2(uScale), 0, 1);
+                gl_Position = vec4((rotatedVertexPos + uOffset + animOffset) * vec2(uScale), randomZ, 1);
             }
         </script>
         

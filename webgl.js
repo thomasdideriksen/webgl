@@ -325,10 +325,11 @@ function workerFunc(e) {
         if (targetPos) {
             dataFromToPos.push(targetPos[j2 + 0], targetPos[j2 + 1]);
         } else {
-            var move = 1.2;
-            var randX = Math.random() - 0.5;
-            var randY = Math.random() - 0.5;
-            dataFromToPos.push(cx + randX * move, cy + randY * move);
+            var radius = (Math.random() - 0.5) * 1.75;
+            var theta = Math.random() * Math.PI;
+            var xDst = cx + radius * Math.sin(theta);
+            var yDst = cy + radius * Math.cos(theta);
+            dataFromToPos.push(xDst, yDst);
         }
         
         var theta0 = anim[j4 + 2] + (anim[j4 + 3] - anim[j4 + 2]) * t;
