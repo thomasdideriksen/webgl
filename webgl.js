@@ -225,132 +225,134 @@ function createTransferList(obj) {
 }
 
 function workerFunc(e) {
-
-    var anim = e.data.anim;
-    var fromToPos = e.data.fromToPos;
-    var itemCount = e.data.itemCount;
-    var targetPos;
-    var duration; 
-    var durationRandomness = 1500;
-    var theta;
-    var initPos = e.data.initPos;
     
     var explode = (e.data.keyCode == 32);
     var reset = (e.data.keyCode == 82);
     var swap = (e.data.keyCode == 83);
     var piles = (e.data.keyCode >= 49 && e.data.keyCode <= 57);
-        
-    if (explode || reset || swap || piles) {
-        
-        if (reset) {
-            targetPos = initPos;
-            duration = 800;
-            durationRandomness = 600;
-            theta = 0;
-        }
-        
-        if (swap) {
-            var pos = initPos;
-            shufflePairs(pos);
-            targetPos = new Float32Array(pos);
-            duration = 800;
-            theta = 0;
-        }
-        
-        if (piles) {
-            var pileCount = e.data.keyCode - 48;
-            var pos = [];
-            var createPilePos = function(x, y) {
-                var r = Math.random() * 0.2 + Math.random() * Math.random() * 0.04;
-                var t = Math.random() * 2 * Math.PI;
-                return {
-                    x: x + r * Math.cos(t),
-                    y: y + r * Math.sin(t)
-                };
-            }
-            var dist = (pileCount == 1) ? 0.0 : 0.7;
-            var itemsPerPile = Math.round(itemCount / pileCount);
-            var tDelta = (2 * Math.PI) / pileCount;
-            var idx = 0;
-            var t = 0;
-            for (var i = 0; i < pileCount; i++) {
-                var pileX = dist * Math.cos(t);
-                var pileY = dist * Math.sin(t);
-                t += tDelta;
-                var lastPile = (i == pileCount - 1);
-                var first = idx;
-                var last = lastPile ? itemCount : idx + itemsPerPile;
-                for (var j = first; j < last; j++) {
-                    var pt = createPilePos(pileX, pileY);
-                    pos.push(pt.x, pt.y);
-                }
-                idx += itemsPerPile;
-            }
-            targetPos = new Float32Array(pos);
-            shufflePairs(targetPos);
-            duration = 800;
-            durationRandomness = 3000;
-        }
-    } else {
+    
+    if (!explode && !reset && !swap && !piles) {
         return;
     }
+
+    var itemCount = e.data.itemCount;
+    var oldNow = Date.now() - e.data.oldTimeOffset;
+    
+    var newAnim = new Float32Array(itemCount * 4);
+    var oldAnim = e.data.anim;    
+    var newFromToPos = new Float32Array(itemCount * 4);
+    var oldFromToPos = e.data.fromToPos;    
         
-    var dataAnim = [];
-    var dataFromToPos = [];   
-    var nowOld = Date.now() - e.data.oldTimeOffset;
-
-    for (var j = 0; j < itemCount; j++) {
-
-        var j4 = 4 * j;
-        var j2 = 2 * j;
-
-        var dt = nowOld - anim[j4 + 0];
-        var t = dt / anim[j4 + 1];
-        t = Math.max(0, t);
-        t = Math.min(1, t);
+    for (var i = 0; i < itemCount; i++) {
+        
+        var i4 = 4 * i;
+        
+        // Compute current animation time (including easing)
+        var oldStartTime = oldAnim[i4 + 0];
+        var oldDuration = oldAnim[i4 + 1];
+        
+        var dt = oldNow - oldStartTime;
+        if (oldDuration == 0) {
+            t = 1;
+        } else {
+            var t = dt / oldDuration;
+            t = Math.max(0, t);
+            t = Math.min(1, t);
+        }
         
         t -= 1.0;
         t = t * t * t * t * t + 1.0;
     
-        var fx = fromToPos[j4 + 0];
-        var fy = fromToPos[j4 + 1];
-        var tx = fromToPos[j4 + 2];
-        var ty = fromToPos[j4 + 3];
+        // Compute current position
+        var fx = oldFromToPos[i4 + 0];
+        var fy = oldFromToPos[i4 + 1];
+        var tx = oldFromToPos[i4 + 2];
+        var ty = oldFromToPos[i4 + 3];
+        newFromToPos[i4 + 0] = fx + (tx - fx) * t;
+        newFromToPos[i4 + 1] = fy + (ty - fy) * t;
         
-        var cx = fx + (tx - fx) * t;
-        var cy = fy + (ty - fy) * t;
-        
-        dataFromToPos.push(cx, cy);
-        
-        if (targetPos) {
-            dataFromToPos.push(targetPos[j2 + 0], targetPos[j2 + 1]);
-        } else {
-            var radius = (Math.random() - 0.5) * 1.75;
-            var theta = Math.random() * Math.PI;
-            var xDst = cx + radius * Math.sin(theta);
-            var yDst = cy + radius * Math.cos(theta);
-            dataFromToPos.push(xDst, yDst);
+        // Compute current rotation
+        var theta0 = oldAnim[i4 + 2];
+        var theta1 = oldAnim[i4 + 3];
+        newAnim[i4 + 2] = (theta0 + (theta1 - theta0) * t) % (2 * Math.PI);
+    }
+    
+    if (swap) {
+        shufflePairs(e.data.initPos);
+    }
+    
+    if (reset || swap) {
+        var theta = 0;
+        var durationBase = 800;
+        var durationRand = 600;
+        for (var i = 0; i < itemCount; i++) {
+            var i4 = i * 4;
+            var i2 = i * 2;
+            newFromToPos[i4 + 2] = e.data.initPos[i2 + 0];
+            newFromToPos[i4 + 3] = e.data.initPos[i2 + 1];
         }
-        
-        var theta0 = anim[j4 + 2] + (anim[j4 + 3] - anim[j4 + 2]) * t;
-        theta0 %=  (2 * Math.PI);
-        var theta1 = theta;
-        if (typeof theta1 === 'undefined') {
-            theta1 = theta0 + 2 * Math.PI + Math.random() * 4 * Math.PI;
+    }
+    
+    if (explode) {
+        var durationBase = 2500;
+        var durationRand = 2000;
+        for (var i = 0; i < itemCount; i++) {
+            var i4 = i * 4;
+            var r = (Math.random() - 0.5) * 1.75;
+            var t = Math.random() * Math.PI;
+            newFromToPos[i4 + 2] = newFromToPos[i4 + 0] + r * Math.sin(t);
+            newFromToPos[i4 + 3] = newFromToPos[i4 + 1] + r * Math.cos(t);
         }
-        var actualDuration = duration || 2500;
-        var actualDurationRandomness = durationRandomness || 0;
-        var computedDuration = actualDuration + Math.random() * actualDurationRandomness;
-        
-        dataAnim.push(0, computedDuration, theta0, theta1);
+    }
+    
+    if (piles) {
+        var pileCount = e.data.keyCode - 48;
+        var createPilePos = function(x, y) {
+            var r = Math.random() * 0.2 + Math.random() * Math.random() * 0.04;
+            var t = Math.random() * 2 * Math.PI;
+            return {
+                x: x + r * Math.cos(t),
+                y: y + r * Math.sin(t)
+            };
+        }
+        var dist = (pileCount == 1) ? 0.0 : 0.7;
+        var itemsPerPile = Math.round(itemCount / pileCount);
+        var tDelta = (2 * Math.PI) / pileCount;
+        var idx = 0;
+        var t = 0;
+        for (var i = 0; i < pileCount; i++) {
+            var pileX = dist * Math.cos(t);
+            var pileY = dist * Math.sin(t);
+            t += tDelta;
+            var lastPile = (i == pileCount - 1);
+            var first = idx;
+            var last = lastPile ? itemCount : idx + itemsPerPile;
+            for (var j = first; j < last; j++) {
+                var j4 = j * 4;
+                var pt = createPilePos(pileX, pileY);
+                newFromToPos[j4 + 2] = pt.x;
+                newFromToPos[j4 + 3] = pt.y;
+            }
+            idx += itemsPerPile;
+        }
+        durationBase = 800;
+        durationRand = 2000;
+    }
+    
+    
+    for (var i = 0; i < itemCount; i++) {
+        var i4 = i * 4;
+        newAnim[i4 + 0] = 0;
+        newAnim[i4 + 1] = durationBase + Math.random() * durationRand;
+        newAnim[i4 + 3] = (typeof theta !== 'undefined') ? theta : newAnim[i4 + 2] + 2 * Math.PI + Math.random() * 4 * Math.PI;
     }
     
     return {
-        anim: new Float32Array(dataAnim), 
-        fromToPos: new Float32Array(dataFromToPos),
+        anim: newAnim,
+        fromToPos: newFromToPos,
         workerFuncStartTime: e.data.workerFuncStartTime,
         newTimeOffset: Date.now()
-    }
+    };
 }
 
 function setResult(result) {
