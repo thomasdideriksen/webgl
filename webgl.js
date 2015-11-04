@@ -336,7 +336,7 @@ function workerFunc(e) {
     }
     
     if (explode) {
-        var durationBase = 2500;
+        var durationBase = 1200;
         var durationRand = 2000;
         for (var i = 0; i < itemCount; i++) {
             var i2 = i * 2;
