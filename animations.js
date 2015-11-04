@@ -3,9 +3,10 @@ var ANIM = {};
 ANIM.EASE_CUBIC_OUT = 1;
 ANIM.EASE_QUINT_OUT = 2;
 
+ANIM.unique = 0;
+
 ANIM.Animations = function() {
     this.animations = {};
-    this.uniqueId = 0;
 }
 ANIM.Animations.prototype = {
     
@@ -13,7 +14,7 @@ ANIM.Animations.prototype = {
 
     animate: function(params) {
         if (!params.object.uniqueAnimationId) {
-            params.object.uniqueAnimationId = this.uniqueId++;
+            params.object.uniqueAnimationId = ANIM.unique++;
         }
         var objectId = params.object.uniqueAnimationId;
         if (!(objectId in this.animations)) {

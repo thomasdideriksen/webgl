@@ -45,7 +45,11 @@
             uniform float uNow;
             uniform float uScale;
             uniform vec2 uOffset;
-            attribute vec4 aFromToPos;
+            
+            attribute vec2 aPosFrom;
+            attribute vec2 aPosTo;
+            attribute vec2 aThetaFromTo;
+            
             attribute vec4 aAnim;
             attribute vec4 aVertexPos;
             attribute vec4 aUVScaleOffset;
@@ -60,16 +64,12 @@
                 t -= 1.0;
                 t = t * t * t * t * t + 1.0;
                 
-                vec2 posFrom = aFromToPos.xy;
-                vec2 posTo = aFromToPos.zw;
+                vec2 animOffset = aPosFrom + (aPosTo - aPosFrom) * vec2(t);
                 
-                vec2 posDelta = posTo - posFrom;
-                vec2 animOffset = posFrom + posDelta * vec2(t);
-                
-                float thetaFrom = aAnim.z;
-                float thetaTo = aAnim.w;
-                float thetaDelta = thetaTo - thetaFrom;
-                float theta = thetaFrom + thetaDelta * t;
+                //float thetaFrom = aAnim.z;
+                //float thetaTo = aAnim.w;
+                //float thetaDelta = thetaTo - thetaFrom;
+                float theta = aThetaFromTo.x + (aThetaFromTo.y - aThetaFromTo.x) * t;
                 vec2 rotatedVertexPos;
                 rotatedVertexPos.x = aVertexPos.x * cos(theta) - aVertexPos.y * sin(theta);
                 rotatedVertexPos.y = aVertexPos.x * sin(theta) + aVertexPos.y * cos(theta);
@@ -79,7 +79,7 @@
                 vec2 uvOffset = aUVScaleOffset.zw;
                 vUV = uv * uvScale + uvOffset;
                 
-                float randomZ = sin(posFrom.x); // Make the quads look more random when piled on-top of each other
+                float randomZ = sin(aPosFrom.x); // Make the quads look more random when piled on-top of each other
             
                 gl_Position = vec4((rotatedVertexPos + uOffset + animOffset) * vec2(uScale), randomZ, 1);
             }

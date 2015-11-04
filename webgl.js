@@ -8,15 +8,17 @@ var _scale = 1.0;
 var _uOffset;
 var _offset = {x: 0, y: 0};
 var _timeOffset = Date.now();
-var _aFromToPos;
 var _aAnim;
 var _aVertexPos;
 var _aUV;
 var _worker;
-var _itemCount;
+var _itemCount = 0;
 var _initPos = [];
 var _animations;
 var _canvas;
+var _aPosFrom;
+var _aPosTo;
+var _aThetaFromTo;
 
 function compile(shader) {
     _gl.compileShader(shader);
@@ -97,37 +99,63 @@ function initWebGL(canvas) {
         dim, -dim, 1, 1, //  /|
         dim,  dim, 1, 0, // 0-1
     ]
-    var dataFromToPos = [];
+    var dataPosFrom = [];
+    var dataPosTo = [];
+    var dataThetaFromTo = [];
     var dataUVScaleOffsets = [];
     var dataAnim = [];
     var startTime = Date.now() - _timeOffset;
     for (var y = 0; y <= 1 - dim; y += dim) {
         for (var x = 0; x <= 1 - dim; x += dim) {
             
-            Array.prototype.push.apply(dataUVScaleOffsets, [dim, dim, x, y]);
-                        
+            dataUVScaleOffsets.push(dim, dim, x, y);
+            dataAnim.push(startTime, 0, 0, 0);            
+            dataThetaFromTo.push(0, 0);
+            
             var initX = 2 * ((x) - 0.5);
             var initY = 2 * ((1 - y) - 0.5);
-            _initPos.push(initX, initY);
-            Array.prototype.push.apply(dataFromToPos, [initX, initY, initX, initY]);
             
-            Array.prototype.push.apply(dataAnim, [startTime, 0, 0, 0]);
+            dataPosFrom.push(initX, initY);
+            dataPosTo.push(initX, initY);
+            
+            _initPos.push(initX, initY);
+            
+            _itemCount++;
         }
     }
     
-    _itemCount = dataUVScaleOffsets.length / 4;
     console.log('Quads: ' + _itemCount);
     
-    // Assign from-to positions
-    _aFromToPos = new Attribute({
+    // Assign source/destination angle
+    _aThetaFromTo = new Attribute({
         program: program,
-        name: "aFromToPos",
-        size: 4,
+        name: "aThetaFromTo",
+        size: 2,
         usage: _gl.DYNAMIC_DRAW,
         instanceDivisor: 1,
     });
-    _aFromToPos.setData(new Float32Array(dataFromToPos));
+    _aThetaFromTo.setData(new Float32Array(dataThetaFromTo));
     
+    // Assign animation source position
+    _aPosFrom = new Attribute({
+        program: program,
+        name: "aPosFrom",
+        size: 2,
+        usage: _gl.DYNAMIC_DRAW,
+        instanceDivisor: 1,
+    });
+    _aPosFrom.setData(new Float32Array(dataPosFrom));
+    
+    // Assign animation destination position
+    _aPosTo = new Attribute({
+        program: program,
+        name: "aPosTo",
+        size: 2,
+        usage: _gl.DYNAMIC_DRAW,
+        instanceDivisor: 1,
+    });
+    _aPosTo.setData(new Float32Array(dataPosTo));
+       
     // Assign animation stuff
     _aAnim = new Attribute({
         program: program,
@@ -190,6 +218,7 @@ function initWebGL(canvas) {
     // Begin rendering
     requestAnimationFrame(render);
     
+    // Initialize worker
     if (window.Worker) {
         _worker = new Worker('worker.js');
         _worker.onmessage = function(e) {
@@ -197,27 +226,32 @@ function initWebGL(canvas) {
         }
     }
     
-    // Listen for key/mouse events
+    // Initialize animation manager
     _animations = new ANIM.Animations();
-    window.addEventListener('keydown', keydown);
+    
+    // Listen for key/mouse events
     _canvas.addEventListener('wheel', wheel);
     _canvas.addEventListener('mousedown', mousedown);
     window.addEventListener('mouseup', mouseup);
     window.addEventListener('mousemove', mousemove);
+    window.addEventListener('keydown', keydown);
 }
 
 function render() {
     requestAnimationFrame(render);
     evaluateFPS();
+    _animations.tick();
     _gl.clear(_gl.COLOR_BUFFER_BIT | _gl.DEPTH_BUFFER_BIT);
     _gl.uniform1f(_uNow,  Date.now() - _timeOffset);
-    _animations.tick();
     _ext0.drawArraysInstancedANGLE(_gl.TRIANGLES, 0, 6, _itemCount);
 }
 
 function createTransferList(obj) {
     var result = [];
     for (var i in obj) {
+        if (obj[i] instanceof ArrayBuffer) {
+            result.push(obj[i]);
+        }
         if (obj[i].buffer && obj[i].buffer instanceof ArrayBuffer) {
             result.push(obj[i].buffer);
         }
@@ -240,12 +274,20 @@ function workerFunc(e) {
     
     var newAnim = new Float32Array(itemCount * 4);
     var oldAnim = e.data.anim;    
-    var newFromToPos = new Float32Array(itemCount * 4);
-    var oldFromToPos = e.data.fromToPos;    
-        
+    
+    var newPosFrom = new Float32Array(itemCount * 2);
+    var oldPosFrom = e.data.posFrom;
+    
+    var newPosTo = new Float32Array(itemCount * 2);
+    var oldPosTo = e.data.posTo;
+    
+    var newThetaFromTo = new Float32Array(itemCount * 2);
+    var oldThetaFromTo = e.data.thetaFromTo;
+            
     for (var i = 0; i < itemCount; i++) {
         
         var i4 = 4 * i;
+        var i2 = 2 * i;
         
         // Compute current animation time (including easing)
         var oldStartTime = oldAnim[i4 + 0];
@@ -264,17 +306,17 @@ function workerFunc(e) {
         t = t * t * t * t * t + 1.0;
     
         // Compute current position
-        var fx = oldFromToPos[i4 + 0];
-        var fy = oldFromToPos[i4 + 1];
-        var tx = oldFromToPos[i4 + 2];
-        var ty = oldFromToPos[i4 + 3];
-        newFromToPos[i4 + 0] = fx + (tx - fx) * t;
-        newFromToPos[i4 + 1] = fy + (ty - fy) * t;
+        var fx = oldPosFrom[i2 + 0];
+        var fy = oldPosFrom[i2 + 1];
+        var tx = oldPosTo[i2 + 0];
+        var ty = oldPosTo[i2 + 1];
+        newPosFrom[i2 + 0] = fx + (tx - fx) * t;
+        newPosFrom[i2 + 1] = fy + (ty - fy) * t;
         
         // Compute current rotation
-        var theta0 = oldAnim[i4 + 2];
-        var theta1 = oldAnim[i4 + 3];
-        newAnim[i4 + 2] = (theta0 + (theta1 - theta0) * t) % (2 * Math.PI);
+        var theta0 = oldThetaFromTo[i2 + 0]
+        var theta1 = oldThetaFromTo[i2 + 1]
+        newThetaFromTo[i2 + 0] = (theta0 + (theta1 - theta0) * t) % (2 * Math.PI);
     }
     
     if (swap) {
@@ -288,8 +330,8 @@ function workerFunc(e) {
         for (var i = 0; i < itemCount; i++) {
             var i4 = i * 4;
             var i2 = i * 2;
-            newFromToPos[i4 + 2] = e.data.initPos[i2 + 0];
-            newFromToPos[i4 + 3] = e.data.initPos[i2 + 1];
+            newPosTo[i2 + 0] = e.data.initPos[i2 + 0];
+            newPosTo[i2 + 1] = e.data.initPos[i2 + 1];
         }
     }
     
@@ -297,11 +339,11 @@ function workerFunc(e) {
         var durationBase = 2500;
         var durationRand = 2000;
         for (var i = 0; i < itemCount; i++) {
-            var i4 = i * 4;
+            var i2 = i * 2;
             var r = (Math.random() - 0.5) * 1.75;
             var t = Math.random() * Math.PI;
-            newFromToPos[i4 + 2] = newFromToPos[i4 + 0] + r * Math.sin(t);
-            newFromToPos[i4 + 3] = newFromToPos[i4 + 1] + r * Math.cos(t);
+            newPosTo[i2 + 0] = newPosFrom[i2 + 0] + r * Math.sin(t);
+            newPosTo[i2 + 1] = newPosFrom[i2 + 1] + r * Math.cos(t);
         }
     }
     
@@ -328,13 +370,14 @@ function workerFunc(e) {
             var first = idx;
             var last = lastPile ? itemCount : idx + itemsPerPile;
             for (var j = first; j < last; j++) {
-                var j4 = j * 4;
+                var j2 = j * 2;
                 var pt = createPilePos(pileX, pileY);
-                newFromToPos[j4 + 2] = pt.x;
-                newFromToPos[j4 + 3] = pt.y;
+                newPosTo[j2 + 0] = pt.x;
+                newPosTo[j2 + 1] = pt.y;
             }
             idx += itemsPerPile;
         }
+        shufflePairs(newPosTo);
         durationBase = 800;
         durationRand = 2000;
     }
@@ -342,14 +385,17 @@ function workerFunc(e) {
     
     for (var i = 0; i < itemCount; i++) {
         var i4 = i * 4;
+        var i2 = i * 2;
         newAnim[i4 + 0] = 0;
         newAnim[i4 + 1] = durationBase + Math.random() * durationRand;
-        newAnim[i4 + 3] = (typeof theta !== 'undefined') ? theta : newAnim[i4 + 2] + 2 * Math.PI + Math.random() * 4 * Math.PI;
+        newThetaFromTo[i2 + 1] = (typeof theta !== 'undefined') ? theta : newAnim[i4 + 2] + 2 * Math.PI + Math.random() * 4 * Math.PI;
     }
     
     return {
         anim: newAnim,
-        fromToPos: newFromToPos,
+        posTo: newPosTo,
+        posFrom: newPosFrom,
+        thetaFromTo: newThetaFromTo,
         workerFuncStartTime: e.data.workerFuncStartTime,
         newTimeOffset: Date.now()
     };
@@ -362,7 +408,9 @@ function setResult(result) {
     console.log('Worker: ' + (Date.now() - result.workerFuncStartTime) + ' ms');
     _timeOffset = result.newTimeOffset;
     _aAnim.setData(result.anim);
-    _aFromToPos.setData(result.fromToPos);
+    _aPosFrom.setData(result.posFrom);
+    _aPosTo.setData(result.posTo);
+    _aThetaFromTo.setData(result.thetaFromTo);
 }
 
 function shufflePairs(array) {
@@ -387,7 +435,9 @@ function keydown(e) {
     
     var message = {
         anim: _aAnim.data, 
-        fromToPos: _aFromToPos.data, 
+        posFrom: _aPosFrom.data,
+        posTo: _aPosTo.data,
+        thetaFromTo: _aThetaFromTo.data,
         oldTimeOffset: _timeOffset,
         itemCount: _itemCount,
         initPos: new Float32Array(_initPos),
