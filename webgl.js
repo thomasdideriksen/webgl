@@ -235,7 +235,6 @@ function initWebGL(canvas) {
     window.addEventListener('mouseup', mouseup);
     window.addEventListener('mousemove', mousemove);
     window.addEventListener('keydown', keydown);
-    window.addEventListener('keyup', keyup);
 }
 
 function render() {
@@ -374,21 +373,7 @@ function workerFunc(e) {
         durationBase = 800;
         durationRand = 2000;
     }
-    
-    if (effect == EFFECT_FOLLOW) {
-        var pt = e.data.followPoint;
-        var theta = 0;
-        var durationBase = 800;
-        var durationRand = 600;
-        for (var i = 0; i < itemCount; i++) {
-            var i2 = i * 2;
-            var r = Math.random() * 0.25;
-            var t = Math.random() * 2 * Math.PI;
-            newPosTo[i2 + 0] = pt.x + r * Math.cos(t);
-            newPosTo[i2 + 1] = pt.y + r * Math.sin(t);
-        }
-    }
-    
+        
     for (var i = 0; i < itemCount; i++) {
         var i4 = i * 4;
         var i2 = i * 2;
@@ -444,15 +429,9 @@ var EFFECT_RESET     = 0;
 var EFFECT_EXPLODE   = 1;
 var EFFECT_RANDOMIZE = 2
 var EFFECT_PILES     = 3
-var EFFECT_FOLLOW    = 4;
-var _ctrlDown = false;
 
 function keydown(e) {
-    
-    if (e.keyCode == 17) {
-        _ctrlDown = true;
-    }
-    
+
     var effect;
     switch (e.keyCode) {
         case 82: effect = EFFECT_RESET; break;
@@ -463,12 +442,6 @@ function keydown(e) {
     }
     
     doShaderAnimation(effect, {pileCount: e.keyCode - 48});
-}
-
-function keyup(e) {
-    if (e.keyCode == 17) {
-        _ctrlDown = false;
-    }
 }
 
 function doShaderAnimation(effect, props) {
@@ -577,11 +550,6 @@ function mousemove(e) {
         var dy = (pt.y - _dragStart.y) / _scale;
         _tmpOffset = {x: _offset.x + dx, y: _offset.y + dy};
         _gl.uniform2f(_uOffset, _tmpOffset.x, _tmpOffset.y);
-    } else {
-        if (_ctrlDown) {
-            var pt = screenToClipSpace({x: e.clientX, y: e.clientY});
-            doShaderAnimation(EFFECT_FOLLOW, {followPoint: pt});
-        }
     }
 }
 
