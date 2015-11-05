@@ -379,7 +379,7 @@ function workerFunc(e) {
         var i2 = i * 2;
         newAnim[i4 + 0] = 0;
         newAnim[i4 + 1] = durationBase + Math.random() * durationRand;
-        newThetaFromTo[i2 + 1] = (typeof theta !== 'undefined') ? theta : newAnim[i4 + 2] + 2 * Math.PI + Math.random() * 4 * Math.PI;
+        newThetaFromTo[i2 + 1] = (typeof theta !== 'undefined') ? theta : newThetaFromTo[i2 + 0] + 4 * Math.PI;
     }
     
     return {
