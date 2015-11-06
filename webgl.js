@@ -235,6 +235,7 @@ function initWebGL(canvas) {
     window.addEventListener('mouseup', mouseup);
     window.addEventListener('mousemove', mousemove);
     window.addEventListener('keydown', keydown);
+    window.addEventListener('keyup', keyup);
 }
 
 function render() {
@@ -275,7 +276,42 @@ function workerFunc(e) {
     
     var newThetaFromTo = new Float32Array(itemCount * 2);
     var oldThetaFromTo = e.data.thetaFromTo;
-            
+
+    var currentAnimationTime = function(i) {
+        var i4 = 4 * i;
+        var oldStartTime = oldAnim[i4 + 0];
+        var oldDuration = oldAnim[i4 + 1];
+        var dt = oldNow - oldStartTime;
+        if (oldDuration == 0) {
+            t = 1;
+        } else {
+            var t = dt / oldDuration;
+            t = Math.max(0, t);
+            t = Math.min(1, t);
+        }
+        t -= 1.0;
+        t = t * t * t * t * t + 1.0;
+        return t;
+    }
+    
+    var currentPosition = function(i, t) {
+        var fx = oldPosFrom[i2 + 0];
+        var fy = oldPosFrom[i2 + 1];
+        var tx = oldPosTo[i2 + 0];
+        var ty = oldPosTo[i2 + 1];
+        return {
+            x: fx + (tx - fx) * t,
+            y: fy + (ty - fy) * t 
+        };
+    }
+    
+    var currentTheta = function(i, t) {
+        var theta0 = oldThetaFromTo[i2 + 0]
+        var theta1 = oldThetaFromTo[i2 + 1]
+        return (theta0 + (theta1 - theta0) * t) % (2 * Math.PI);
+    }
+
+    /*
     for (var i = 0; i < itemCount; i++) {
         
         var i4 = 4 * i;
@@ -309,33 +345,45 @@ function workerFunc(e) {
         var theta0 = oldThetaFromTo[i2 + 0]
         var theta1 = oldThetaFromTo[i2 + 1]
         newThetaFromTo[i2 + 0] = (theta0 + (theta1 - theta0) * t) % (2 * Math.PI);
-    }
+    }*/
     
     if (effect == EFFECT_RANDOMIZE) {
         shufflePairs(e.data.initPos);
     }
     
     if (effect == EFFECT_RESET || effect == EFFECT_RANDOMIZE) {
-        var theta = 0;
-        var durationBase = 800;
-        var durationRand = 600;
         for (var i = 0; i < itemCount; i++) {
-            var i4 = i * 4;
             var i2 = i * 2;
+            var i4 = i * 4;
+            var t = currentAnimationTime(i);
+            var pt0 = currentPosition(i, t);
+            newPosFrom[i2 + 0] = pt0.x;
+            newPosFrom[i2 + 1] = pt0.y;
             newPosTo[i2 + 0] = e.data.initPos[i2 + 0];
             newPosTo[i2 + 1] = e.data.initPos[i2 + 1];
+            newThetaFromTo[i2 + 0] = currentTheta(i, t);
+            newThetaFromTo[i2 + 1] = 0;
+            newAnim[i4 + 0] = 0;
+            newAnim[i4 + 1] = 800 + Math.random() * 600;
         }
     }
     
     if (effect == EFFECT_EXPLODE) {
-        var durationBase = 1200;
-        var durationRand = 2000;
         for (var i = 0; i < itemCount; i++) {
             var i2 = i * 2;
+            var i4 = i * 4;
+            var t = currentAnimationTime(i);
+            var pt0 = currentPosition(i, t);
             var r = (Math.random() - 0.5) * 1.75;
             var t = Math.random() * Math.PI;
-            newPosTo[i2 + 0] = newPosFrom[i2 + 0] + r * Math.sin(t);
-            newPosTo[i2 + 1] = newPosFrom[i2 + 1] + r * Math.cos(t);
+            newPosFrom[i2 + 0] = pt0.x;
+            newPosFrom[i2 + 1] = pt0.y;
+            newPosTo[i2 + 0] = pt0.x + r * Math.sin(t);
+            newPosTo[i2 + 1] = pt0.y + r * Math.cos(t);
+            newThetaFromTo[i2 + 0] = currentTheta(i, t);
+            newThetaFromTo[i2 + 1] = Math.random() * 4 * Math.PI;
+            newAnim[i4 + 0] = 0;
+            newAnim[i4 + 1] = 1200 + Math.random() * 2000;
         }
     }
     
@@ -353,34 +401,46 @@ function workerFunc(e) {
         var itemsPerPile = Math.round(itemCount / pileCount);
         var tDelta = (2 * Math.PI) / pileCount;
         var idx = 0;
-        var t = 0;
+        var theta = 0;
         for (var i = 0; i < pileCount; i++) {
-            var pileX = dist * Math.cos(t);
-            var pileY = dist * Math.sin(t);
-            t += tDelta;
+            var pileX = dist * Math.cos(theta);
+            var pileY = dist * Math.sin(theta);
+            theta += tDelta;
             var lastPile = (i == pileCount - 1);
             var first = idx;
             var last = lastPile ? itemCount : idx + itemsPerPile;
             for (var j = first; j < last; j++) {
                 var j2 = j * 2;
-                var pt = createPilePos(pileX, pileY);
-                newPosTo[j2 + 0] = pt.x;
-                newPosTo[j2 + 1] = pt.y;
+                var j4 = j * 4;
+                var t = currentAnimationTime(j);
+                var pt0 = currentPosition(j, t);
+                var pt1 = createPilePos(pileX, pileY);
+                newPosFrom[j2 + 0] = pt0.x;
+                newPosFrom[j2 + 1] = pt0.y;
+                newPosTo[j2 + 0] = pt1.x;
+                newPosTo[j2 + 1] = pt1.y;
+                newThetaFromTo[j2 + 0] = currentTheta(j, t);
+                newThetaFromTo[j2 + 1] = Math.random() * 4 * Math.PI;
+                newAnim[j4 + 0] = 0;
+                newAnim[j4 + 1] = 1200 + Math.random() * 2000;
             }
             idx += itemsPerPile;
         }
         shufflePairs(newPosTo);
-        durationBase = 800;
-        durationRand = 2000;
+    }
+    
+    if (effect == EFFECT_LOCALEXPLODE) {
+        var pt = e.data.pt;
     }
         
+        /*
     for (var i = 0; i < itemCount; i++) {
         var i4 = i * 4;
         var i2 = i * 2;
         newAnim[i4 + 0] = 0;
         newAnim[i4 + 1] = durationBase + Math.random() * durationRand;
         newThetaFromTo[i2 + 1] = (typeof theta !== 'undefined') ? theta : newThetaFromTo[i2 + 0] + 4 * Math.PI;
-    }
+    }*/
     
     return {
         anim: newAnim,
@@ -399,7 +459,7 @@ function setResult(result) {
     if (_worker) {
         _worker.busy = false;
     }
-    //console.log('Worker: ' + (Date.now() - result.workerFuncStartTime) + ' ms');
+    console.log('Worker: ' + (Date.now() - result.workerFuncStartTime) + ' ms');
     _timeOffset = result.newTimeOffset;
     _aAnim.setData(result.anim);
     _aPosFrom.setData(result.posFrom);
@@ -425,13 +485,19 @@ function shufflePairs(array) {
     return array;
 }
 
-var EFFECT_RESET     = 0;
-var EFFECT_EXPLODE   = 1;
-var EFFECT_RANDOMIZE = 2
-var EFFECT_PILES     = 3
+var EFFECT_RESET        = 0;
+var EFFECT_EXPLODE      = 1;
+var EFFECT_RANDOMIZE    = 2
+var EFFECT_PILES        = 3
+var EFFECT_LOCALEXPLODE = 4;
+var _ctrlDown = false;
 
 function keydown(e) {
 
+    if (e.keyCode == 17) {
+        _ctrlDown = true;
+    }
+    
     var effect;
     switch (e.keyCode) {
         case 82: effect = EFFECT_RESET; break;
@@ -442,6 +508,12 @@ function keydown(e) {
     }
     
     doShaderAnimation(effect, {pileCount: e.keyCode - 48});
+}
+
+function keyup(e) {
+    if (e.keyCode == 17) {
+        _ctrlDown = false;
+    }
 }
 
 function doShaderAnimation(effect, props) {
@@ -494,6 +566,12 @@ function screenToClipSpace(pt) {
 }
 
 function mousedown(e) {
+    if (_ctrlDown) {
+        var pt = screenToClipSpace({x: e.clientX, y: e.clientY});
+        doShaderAnimation(EFFECT_LOCALEXPLODE, {pt: pt});
+        return;
+    }
+    
     _dragging = true;
     _dragStart = _lastPoint = screenToClipSpace({x: e.clientX, y: e.clientY});
     _animations.cancel(_animIdX);
