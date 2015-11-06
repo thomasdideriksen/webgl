@@ -278,7 +278,7 @@ function workerFunc(e) {
     var oldThetaFromTo = e.data.thetaFromTo;
 
     var currentAnimationTime = function(i) {
-        var i4 = 4 * i;
+        var i4 = i * 4;
         var oldStartTime = oldAnim[i4 + 0];
         var oldDuration = oldAnim[i4 + 1];
         var dt = oldNow - oldStartTime;
@@ -295,6 +295,7 @@ function workerFunc(e) {
     }
     
     var currentPosition = function(i, t) {
+        var i2 = i * 2;
         var fx = oldPosFrom[i2 + 0];
         var fy = oldPosFrom[i2 + 1];
         var tx = oldPosTo[i2 + 0];
@@ -306,51 +307,12 @@ function workerFunc(e) {
     }
     
     var currentTheta = function(i, t) {
+        var i2 = i * 2;
         var theta0 = oldThetaFromTo[i2 + 0]
         var theta1 = oldThetaFromTo[i2 + 1]
         return (theta0 + (theta1 - theta0) * t) % (2 * Math.PI);
     }
-
-    /*
-    for (var i = 0; i < itemCount; i++) {
-        
-        var i4 = 4 * i;
-        var i2 = 2 * i;
-        
-        // Compute current animation time (including easing)
-        var oldStartTime = oldAnim[i4 + 0];
-        var oldDuration = oldAnim[i4 + 1];
-        
-        var dt = oldNow - oldStartTime;
-        if (oldDuration == 0) {
-            t = 1;
-        } else {
-            var t = dt / oldDuration;
-            t = Math.max(0, t);
-            t = Math.min(1, t);
-        }
-        
-        t -= 1.0;
-        t = t * t * t * t * t + 1.0;
-    
-        // Compute current position
-        var fx = oldPosFrom[i2 + 0];
-        var fy = oldPosFrom[i2 + 1];
-        var tx = oldPosTo[i2 + 0];
-        var ty = oldPosTo[i2 + 1];
-        newPosFrom[i2 + 0] = fx + (tx - fx) * t;
-        newPosFrom[i2 + 1] = fy + (ty - fy) * t;
-        
-        // Compute current rotation
-        var theta0 = oldThetaFromTo[i2 + 0]
-        var theta1 = oldThetaFromTo[i2 + 1]
-        newThetaFromTo[i2 + 0] = (theta0 + (theta1 - theta0) * t) % (2 * Math.PI);
-    }*/
-    
-    if (effect == EFFECT_RANDOMIZE) {
-        shufflePairs(e.data.initPos);
-    }
-    
+      
     if (effect == EFFECT_RESET || effect == EFFECT_RANDOMIZE) {
         for (var i = 0; i < itemCount; i++) {
             var i2 = i * 2;
@@ -365,6 +327,9 @@ function workerFunc(e) {
             newThetaFromTo[i2 + 1] = 0;
             newAnim[i4 + 0] = 0;
             newAnim[i4 + 1] = 800 + Math.random() * 600;
+        }
+        if (effect == EFFECT_RANDOMIZE) {
+            shufflePairs(newPosTo);
         }
     }
     
@@ -422,7 +387,7 @@ function workerFunc(e) {
                 newThetaFromTo[j2 + 0] = currentTheta(j, t);
                 newThetaFromTo[j2 + 1] = Math.random() * 4 * Math.PI;
                 newAnim[j4 + 0] = 0;
-                newAnim[j4 + 1] = 1200 + Math.random() * 2000;
+                newAnim[j4 + 1] = 500 + Math.random() * Math.random() * 2000;
             }
             idx += itemsPerPile;
         }
@@ -431,17 +396,9 @@ function workerFunc(e) {
     
     if (effect == EFFECT_LOCALEXPLODE) {
         var pt = e.data.pt;
+        // TODO
     }
-        
-        /*
-    for (var i = 0; i < itemCount; i++) {
-        var i4 = i * 4;
-        var i2 = i * 2;
-        newAnim[i4 + 0] = 0;
-        newAnim[i4 + 1] = durationBase + Math.random() * durationRand;
-        newThetaFromTo[i2 + 1] = (typeof theta !== 'undefined') ? theta : newThetaFromTo[i2 + 0] + 4 * Math.PI;
-    }*/
-    
+           
     return {
         anim: newAnim,
         posTo: newPosTo,
